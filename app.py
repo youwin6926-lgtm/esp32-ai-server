@@ -7,10 +7,13 @@ app = Flask(__name__)
 def home():
     return "ESP32 AI Server Running"
 
-@app.route("/analyze", methods=["POST"])
+@app.route("/analyze", methods=["POST", "GET"])
 def analyze():
-    data = request.get_json(force=True)
-    pm25 = float(data.get("pm25", 0))
+    try:
+        data = request.get_json(silent=True) or {}
+        pm25 = float(data.get("pm25", 0))
+    except:
+        pm25 = 0
 
     if pm25 <= 25:
         result = "good"
@@ -20,6 +23,7 @@ def analyze():
         result = "danger"
 
     return jsonify({
+        "status": "ok",
         "pm25": pm25,
         "result": result
     }), 200
