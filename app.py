@@ -13,11 +13,16 @@ def analyze():
     pm25 = float(data.get("pm25", 0))
 
     if pm25 <= 25:
-        return jsonify({"result": "good"})
+        result = "good"
     elif pm25 <= 50:
-        return jsonify({"result": "warn"})
+        result = "warn"
     else:
-        return jsonify({"result": "danger"})
+        result = "danger"
+
+    return jsonify({
+        "pm25": pm25,
+        "result": result
+    }), 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
