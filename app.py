@@ -9,6 +9,7 @@ history = []
 API_KEY = "90d2c037a3e120cd335a8da7a4303aa2"
 CITY = "Samut Songkhram"
 
+# ดึงข้อมูลอากาศภายนอก
 def get_weather():
     url = f"http://api.openweathermap.org/data/2.5/weather?q={CITY},TH&appid={API_KEY}&units=metric"
     r = requests.get(url, timeout=10).json()
@@ -19,6 +20,7 @@ def get_weather():
     return humidity, pressure
 
 
+# วิเคราะห์ PM2.5
 @app.route("/analyze", methods=["POST"])
 def analyze():
     data = request.get_json()
@@ -48,6 +50,34 @@ def analyze():
     })
 
 
+# Chat AI
+@app.route("/chat", methods=["POST"])
+def chat():
+    data = request.get_json()
+
+    question = data.get("msg", "").lower()
+    pm25 = float(data.get("pm25", 0))
+    humidity, pressure = get_weather()
+
+    if "status" in question:
+        reply = f"PM2.5 = {pm25}\nความชื้น = {humidity}%\nความกดอากาศ = {pressure} hPa"
+
+    elif "เปิดพัดลม" in question:
+        if pm25 > 50:
+            reply = "ควรเปิดพัดลมทันที"
+        else:
+            reply = "ยังไม่จำเป็นต้องเปิดพัดลม"
+
+    elif "อากาศ" in question:
+        reply = f"สมุทรสงคราม\nความชื้น {humidity}%\nความกดอากาศ {pressure} hPa"
+
+    else:
+        reply = "คำสั่งที่ใช้ได้:\nstatus\nอากาศ\nควรเปิดพัดลมไหม"
+
+    return jsonify({"reply": reply})
+
+
+# ประเมินระดับฝุ่น
 def evaluate(pm25):
     if pm25 < 50:
         return "ปกติ", "ไม่มีผลกระทบกับสุขภาพ"
@@ -56,7 +86,7 @@ def evaluate(pm25):
     else:
         return "อันตราย", "ควรงดกิจกรรมกลางแจ้ง"
 
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+
