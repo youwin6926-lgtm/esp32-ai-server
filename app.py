@@ -29,8 +29,10 @@ def update_fan_learning(pm25, fan):
         start = fan_learning["start_pm"]
         if start and start > 0:
             reduction = start - pm25
-            efficiency = (reduction / start) * 100
+            if reduction < 0:
+                reduction = 0
 
+            efficiency = (reduction / start) * 100
             # ป้องกันค่าผิดปกติ
             if efficiency < 0:
                 efficiency = 0
@@ -127,6 +129,7 @@ def chat():
     data = request.get_json()
     question = data.get("msg", "").lower()
     pm25 = float(data.get("pm25", 0))
+    fan_state = int(data.get("fan", fan_state or 0))  # รับสถานะจริงจาก ESP32
 
     humidity, pressure, temp, weather = get_weather()
 
@@ -142,27 +145,12 @@ def chat():
     level, advice = evaluate(pm25)
     eff = get_fan_efficiency()
 
-    # FAN CONTROL
-    if "fanon" in question or "เปิดพัดลม" in question:
-        fan_state = 1
-        reply = "🟢 เปิดพัดลมให้แล้ว"
-
-    elif "fanoff" in question or "ปิดพัดลม" in question:
-        fan_state = 0
-        reply = "🔴 ปิดพัดลมให้แล้ว"
-
-    elif "ควรเปิดพัดลมไหม" in question:
+    # ===== AI RESPONSE =====
+    if "ควรเปิดพัดลมไหม" in question:
         if pm25 > 50:
-            fan_state = 1
-            reply = "🌫 ฝุ่นสูง กำลังเปิดพัดลม"
-
+            reply = "🌫 ฝุ่นสูง แนะนำเปิดพัดลม"
         elif pm25 > 25 and trend_value > 0:
-            if eff > 10:
-                fan_state = 1
-                reply = "📈 ฝุ่นเพิ่ม และพัดลมช่วยได้ เปิดพัดลม"
-            else:
-                reply = "📈 ฝุ่นเพิ่ม แต่พัดลมช่วยได้น้อย"
-
+            reply = "📈 ฝุ่นเพิ่ม แนะนำเปิดพัดลม"
         else:
             reply = "✅ อากาศยังดี"
 
@@ -187,8 +175,6 @@ def chat():
     else:
         reply = (
             "คำสั่งที่ใช้ได้:\n"
-            "เปิดพัดลม\n"
-            "ปิดพัดลม\n"
             "ควรเปิดพัดลมไหม\n"
             "สรุปคุณภาพอากาศ\n"
             "แนวโน้มฝุ่น\n"
@@ -203,10 +189,10 @@ def chat():
         mimetype="application/json"
     )
 
-
 # RUN SERVER
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+
 
 
