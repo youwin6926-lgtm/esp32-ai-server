@@ -163,13 +163,6 @@ def chat():
         eff = get_fan_efficiency()
         reply = f"🧠 พัดลมลดฝุ่นเฉลี่ย {eff:.1f}%"
 
-    elif "status" in question:
-        reply = (
-            f"PM2.5 = {pm25}\n"
-            f"Fan = {fan_state}\n"
-            f"Humidity = {humidity}%"
-        )
-
     else:
         reply = (
             "คำสั่งที่ใช้ได้:\n"
@@ -179,7 +172,6 @@ def chat():
             "สรุปคุณภาพอากาศ\n"
             "แนวโน้มฝุ่น\n"
             "ประสิทธิภาพพัดลม\n"
-            "status"
         )
 
     return Response(
@@ -194,3 +186,4 @@ def chat():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+
