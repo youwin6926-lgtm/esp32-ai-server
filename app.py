@@ -120,7 +120,7 @@ def chat():
 # ประเมินระดับฝุ่น
 def evaluate(pm25):
     if pm25 < 50:
-        return "ปกติ", "ไม่มีผลกระทบกับสุขภาพ"
+        return "ปกติ", "สามารถออกไปข้างนอกได้โดยไม่มีผลกระทบกับสุขภาพ"
     elif pm25 < 100:
         return "เริ่มมีผลกระทบ", "ควรใส่หน้ากากเมื่อออกไปข้างนอก"
     else:
@@ -130,3 +130,4 @@ def evaluate(pm25):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+
