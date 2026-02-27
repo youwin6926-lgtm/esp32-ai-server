@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify
 import os
 import requests
+import json
+from flask import Response
 
 app = Flask(__name__)
 
@@ -40,14 +42,17 @@ def analyze():
 
     humidity, pressure = get_weather()
 
-    return jsonify({
+    return Response(
+    json.dumps({
         "current": pm25,
         "predicted": predicted,
         "level": level,
         "advice": advice,
         "humidity": humidity,
         "pressure": pressure
-    })
+    }, ensure_ascii=False),
+    mimetype="application/json"
+)
 
 
 # Chat AI
@@ -74,7 +79,10 @@ def chat():
     else:
         reply = "คำสั่งที่ใช้ได้:\nstatus\nอากาศ\nควรเปิดพัดลมไหม"
 
-    return jsonify({"reply": reply})
+   return Response(
+    json.dumps({"reply": reply}, ensure_ascii=False),
+    mimetype="application/json"
+)
 
 
 # ประเมินระดับฝุ่น
@@ -89,4 +97,5 @@ def evaluate(pm25):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+
 
