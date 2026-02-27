@@ -5,20 +5,36 @@ import json
 
 app = Flask(__name__)
 
-history = []
-
 API_KEY = "90d2c037a3e120cd335a8da7a4303aa2"
 CITY = "Samut Songkhram"
 
+history = []
+fan_state = 0   # 0=ปิด 1=เปิด
+
 # ดึงข้อมูลอากาศภายนอก
 def get_weather():
-    url = f"http://api.openweathermap.org/data/2.5/weather?q={CITY},TH&appid={API_KEY}&units=metric"
-    r = requests.get(url, timeout=10).json()
-    humidity = r["main"]["humidity"]
-    pressure = r["main"]["pressure"]
-    return humidity, pressure
+    try:
+        url = f"http://api.openweathermap.org/data/2.5/weather?q={CITY},TH&appid={API_KEY}&units=metric"
+        r = requests.get(url, timeout=10).json()
 
+        humidity = r["main"]["humidity"]
+        pressure = r["main"]["pressure"]
+        temp = r["main"]["temp"]
+        weather = r["weather"][0]["main"]
 
+        return humidity, pressure, temp, weather
+    except:
+        return 0, 0, 0, "unknown"
+
+# ประเมินคุณภาพอากาศ
+def evaluate(pm25):
+    if pm25 < 50:
+        return "ปกติ", "สามารถทำกิจกรรมได้ตามปกติ"
+    elif pm25 < 100:
+        return "เริ่มมีผลกระทบ", "ควรใส่หน้ากาก"
+    else:
+        return "อันตราย", "ควรหลีกเลี่ยงกิจกรรมกลางแจ้ง"
+        
 # วิเคราะห์ PM2.5
 @app.route("/analyze", methods=["POST"])
 def analyze():
@@ -36,7 +52,8 @@ def analyze():
 
     predicted = pm25 + trend
     level, advice = evaluate(predicted)
-    humidity, pressure = get_weather()
+
+    humidity, pressure, temp, weather = get_weather()
 
     return Response(
         json.dumps({
@@ -45,43 +62,58 @@ def analyze():
             "level": level,
             "advice": advice,
             "humidity": humidity,
-            "pressure": pressure
+            "pressure": pressure,
+            "temperature": temp,
+            "weather": weather
         }, ensure_ascii=False),
         mimetype="application/json"
     )
 
-
-# Chat AI
+# CHAT AI
 @app.route("/chat", methods=["POST"])
 def chat():
+    global fan_state
+
     data = request.get_json()
     question = data.get("msg", "").lower()
     pm25 = float(data.get("pm25", 0))
-    humidity, pressure = get_weather()
 
-    # คำนวณแนวโน้ม
+    humidity, pressure, temp, weather = get_weather()
+
+    # trend
     if len(history) >= 2:
         trend_value = history[-1] - history[-2]
     else:
         trend_value = 0
 
     if trend_value > 3:
-        trend_text = "เพิ่มขึ้น\n"
+        trend_text = "เพิ่มขึ้น"
     elif trend_value < -3:
-        trend_text = "ลดลง\n"
+        trend_text = "ลดลง"
     else:
-        trend_text = "คงที่\n"
+        trend_text = "คงที่"
 
-    # ประเมินระดับ
     level, advice = evaluate(pm25)
 
-    if "เปิดพัดลม" in question or "ควรเปิดพัดลมไหมตอนนี้" in question:
+    # ควบคุมพัดลมด้วย Chat
+    if "เปิดพัดลม" in question:
+        fan_state = 1
+        reply = "🟢 เปิดพัดลมให้แล้ว"
+
+    elif "ปิดพัดลม" in question:
+        fan_state = 0
+        reply = "🔴 ปิดพัดลมให้แล้ว"
+
+    elif "ควรเปิดพัดลมไหม" in question:
         if pm25 > 50:
-            reply = "🌫 ฝุ่นสูง ควรเปิดพัดลมทันที\n"
+            fan_state = 1
+            reply = "🌫 ฝุ่นสูง กำลังเปิดพัดลม"
         elif pm25 > 25 and trend_value > 0:
-            reply = "📈 ฝุ่นกำลังเพิ่ม แนะนำเปิดพัดลม\n"
+            fan_state = 1
+            reply = "📈 ฝุ่นกำลังเพิ่ม แนะนำเปิดพัดลม"
         else:
-            reply = "✅ อากาศยังโอเค ยังไม่จำเป็นต้องเปิดพัดลม\n"
+            fan_state = 0
+            reply = "✅ อากาศยังดี ไม่จำเป็นต้องเปิดพัดลม"
 
     elif "แนวโน้ม" in question:
         reply = f"📊 แนวโน้มฝุ่น: {trend_text}\nค่า PM2.5 = {pm25}"
@@ -95,40 +127,37 @@ def chat():
             f"คำแนะนำ = {advice}\n"
             f"ความชื้น = {humidity}%\n"
             f"ความกดอากาศ = {pressure} hPa\n"
+            f"อุณหภูมิ = {temp}°C\n"
+            f"สภาพอากาศ = {weather}"
         )
 
     elif "status" in question:
-        reply = f"PM2.5 = {pm25}\nความชื้น = {humidity}%\nความกดอากาศ = {pressure} hPa\n"
-
-    elif "อากาศ" in question:
-        reply = f"สมุทรสงคราม\nความชื้น {humidity}%\nความกดอากาศ {pressure} hPa\n"
+        reply = (
+            f"PM2.5 = {pm25}\n"
+            f"Fan = {'ON' if fan_state else 'OFF'}\n"
+            f"Humidity = {humidity}%"
+        )
 
     else:
         reply = (
             "คำสั่งที่ใช้ได้:\n"
-            "status\n"
+            "เปิดพัดลม\n"
+            "ปิดพัดลม\n"
+            "ควรเปิดพัดลมไหม\n"
             "สรุปคุณภาพอากาศ\n"
             "แนวโน้มฝุ่น\n"
-            "ควรเปิดพัดลมไหมตอนนี้"
+            "status\n"
         )
 
     return Response(
-        json.dumps({"reply": reply}, ensure_ascii=False),
+        json.dumps({
+            "reply": reply,
+            "fan": fan_state
+        }, ensure_ascii=False),
         mimetype="application/json"
     )
 
-# ประเมินระดับฝุ่น
-def evaluate(pm25):
-    if pm25 < 50:
-        return "ปกติ", "สามารถออกไปข้างนอกได้โดยไม่มีผลกระทบกับสุขภาพ\n"
-    elif pm25 < 100:
-        return "เริ่มมีผลกระทบ", "ควรใส่หน้ากากเมื่อออกไปข้างนอก\n"
-    else:
-        return "อันตราย", "ควรงดกิจกรรมกลางแจ้ง\n"
-
-
+# RUN SERVER
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
-
-
