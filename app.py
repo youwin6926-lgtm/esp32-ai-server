@@ -96,11 +96,11 @@ def chat():
     level, advice = evaluate(pm25)
 
     # ควบคุมพัดลมด้วย Chat
-    if "เปิดพัดลม" in question:
+    if "FanOn" in question:
         fan_state = 1
         reply = "🟢 เปิดพัดลมให้แล้ว"
 
-    elif "ปิดพัดลม" in question:
+    elif "FanOff" in question:
         fan_state = 0
         reply = "🔴 ปิดพัดลมให้แล้ว"
 
@@ -161,3 +161,4 @@ def chat():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+
