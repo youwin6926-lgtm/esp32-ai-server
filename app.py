@@ -9,7 +9,7 @@ API_KEY = "90d2c037a3e120cd335a8da7a4303aa2"
 CITY = "Samut Songkhram"
 
 history = []
-fan_state = 0   # 0=ปิด 1=เปิด
+fan_state = None
 
 fan_learning = {
     "fan_on": False,
@@ -82,9 +82,13 @@ def evaluate(pm25):
 # ANALYZE ENDPOINT
 @app.route("/analyze", methods=["POST"])
 def analyze():
+    global fan_state
+
     data = request.get_json()
     pm25 = float(data.get("pm25", 0))
     fan = int(data.get("fan", 0))
+
+    fan_state = fan   # รับค่าจาก ESP32
 
     history.append(pm25)
     if len(history) > 5:
@@ -104,11 +108,12 @@ def analyze():
             "predicted": predicted,
             "level": level,
             "advice": advice,
+            "fan": fan_state,  # ส่งสถานะพัดลมกลับ
+            "fan_efficiency": get_fan_efficiency(),
             "humidity": humidity,
             "pressure": pressure,
             "temperature": temp,
-            "weather": weather,
-            "fan_efficiency": get_fan_efficiency()
+            "weather": weather
         }, ensure_ascii=False),
         mimetype="application/json"
     )
@@ -137,7 +142,7 @@ def chat():
     level, advice = evaluate(pm25)
     eff = get_fan_efficiency()
 
-    # ===== FAN CONTROL =====
+    # FAN CONTROL
     if "fanon" in question or "เปิดพัดลม" in question:
         fan_state = 1
         reply = "🟢 เปิดพัดลมให้แล้ว"
@@ -203,4 +208,5 @@ def chat():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+
 
