@@ -10,7 +10,7 @@ CITY = "Samut Songkhram"
 
 history = []
 fan_state = None
-
+auto_mode = False
 fan_learning = {
     "fan_on": False,
     "start_pm": None,
@@ -89,6 +89,8 @@ def analyze():
     data = request.get_json()
     pm25 = float(data.get("pm25", 0))
     fan = int(data.get("fan", 0))
+    auto_mode = int(data.get("auto", 0))
+    fan_state = fan
 
     fan_state = fan   # รับค่าจาก ESP32
 
@@ -145,7 +147,7 @@ def chat():
     level, advice = evaluate(pm25)
     eff = get_fan_efficiency()
 
-    # ===== AI RESPONSE =====
+    #  AI LOGIC
     if "ควรเปิดพัดลมไหม" in question:
         if pm25 > 50:
             reply = "🌫 ฝุ่นสูง แนะนำเปิดพัดลม\n"
@@ -168,6 +170,12 @@ def chat():
             f"ความชื้น = {humidity}%\n"
             f"อากาศ = {weather}\n"
         )
+
+    elif "เปิดพัดลม" in question:
+    if auto_mode:
+        reply = "🤖 โหมดอัตโนมัติเปิดอยู่ ระบบควบคุมพัดลมเอง\n"
+    else:
+        reply = "🔓 โหมด Manual สามารถกดเปิดพัดลมจากแอปได้\n"
 
     elif "ประสิทธิภาพพัดลม" in question:
         reply = f"🧠 พัดลมลดฝุ่นเฉลี่ย {eff:.1f}%\n"
@@ -193,6 +201,7 @@ def chat():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
