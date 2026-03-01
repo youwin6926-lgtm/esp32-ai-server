@@ -172,10 +172,10 @@ def chat():
         )
 
     elif "เปิดพัดลม" in question:
-    if auto_mode:
-        reply = "🤖 โหมดอัตโนมัติเปิดอยู่ ระบบควบคุมพัดลมเอง\n"
-    else:
-        reply = "🔓 โหมด Manual สามารถกดเปิดพัดลมจากแอปได้\n"
+        if auto_mode:
+            reply = "🤖 โหมดอัตโนมัติเปิดอยู่ ระบบควบคุมพัดลมเอง\n"
+        else:
+            reply = "🔓 โหมด Manual สามารถกดเปิดพัดลมจากแอปได้\n"
 
     elif "ประสิทธิภาพพัดลม" in question:
         reply = f"🧠 พัดลมลดฝุ่นเฉลี่ย {eff:.1f}%\n"
@@ -201,6 +201,7 @@ def chat():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
