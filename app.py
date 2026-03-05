@@ -9,15 +9,13 @@ API_KEY = "90d2c037a3e120cd335a8da7a4303aa2"
 CITY = "Samut Songkhram"
 
 history = []
-fan_state = None
-auto_mode = False
+fan_state = 0
 fan_learning = {
     "fan_on": False,
     "start_pm": None,
     "eff_history": []
 }
 
-# FAN LEARNING SYSTEM
 def update_fan_learning(pm25, fan):
     global fan_learning
 
@@ -27,17 +25,15 @@ def update_fan_learning(pm25, fan):
 
     elif fan == 1 and fan_learning["fan_on"] == True:
         start = fan_learning["start_pm"]
+
         if start and start > 0:
             reduction = start - pm25
             if reduction < 0:
                 reduction = 0
 
             efficiency = (reduction / start) * 100
-            # ป้องกันค่าผิดปกติ
-            if efficiency < 0:
-                efficiency = 0
-            if efficiency > 100:
-                efficiency = 100
+
+            efficiency = max(0, min(100, efficiency))
 
             fan_learning["eff_history"].append(efficiency)
 
@@ -54,10 +50,10 @@ def get_fan_efficiency():
         return 0
     return sum(fan_learning["eff_history"]) / len(fan_learning["eff_history"])
 
-
-# WEATHER API
 def get_weather():
+
     try:
+
         url = f"http://api.openweathermap.org/data/2.5/weather?q={CITY},TH&appid={API_KEY}&units=metric"
         r = requests.get(url, timeout=10).json()
 
@@ -67,43 +63,46 @@ def get_weather():
             r["main"]["temp"],
             r["weather"][0]["main"]
         )
+
     except:
         return 0, 0, 0, "unknown"
 
-
-# AIR QUALITY EVALUATION
 def evaluate(pm25):
+
     if pm25 < 50:
-        return "ปกติ", "สามารถทำกิจกรรมได้ตามปกติ\n"
+        return "ปกติ", "สามารถทำกิจกรรมได้ตามปกติ"
+
     elif pm25 < 100:
-        return "เริ่มมีผลกระทบ", "ควรใส่หน้ากาก\n"
+        return "เริ่มมีผลกระทบ", "ควรใส่หน้ากาก"
+
     else:
-        return "อันตราย", "ควรหลีกเลี่ยงกิจกรรมกลางแจ้ง\n"
+        return "อันตราย", "ควรหลีกเลี่ยงกิจกรรมกลางแจ้ง"
 
-
-# ANALYZE ENDPOINT
 @app.route("/analyze", methods=["POST"])
 def analyze():
+
     global fan_state
 
     data = request.get_json()
+
     pm25 = float(data.get("pm25", 0))
     fan = int(data.get("fan", 0))
-    auto_mode = int(data.get("auto", 0))
+
     fan_state = fan
 
-    fan_state = fan   # รับค่าจาก ESP32
-
     history.append(pm25)
+
     if len(history) > 5:
         history.pop(0)
 
     update_fan_learning(pm25, fan)
 
     trend = history[-1] - history[-2] if len(history) >= 2 else 0
+
     predicted = pm25 + trend
 
     level, advice = evaluate(predicted)
+
     humidity, pressure, temp, weather = get_weather()
 
     return Response(
@@ -112,7 +111,7 @@ def analyze():
             "predicted": predicted,
             "level": level,
             "advice": advice,
-            "fan": fan_state,  # ส่งสถานะพัดลมกลับ
+            "fan": fan_state,
             "fan_efficiency": get_fan_efficiency(),
             "humidity": humidity,
             "pressure": pressure,
@@ -122,16 +121,16 @@ def analyze():
         mimetype="application/json"
     )
 
-
-# CHAT AI
 @app.route("/chat", methods=["POST"])
 def chat():
+
     global fan_state
 
     data = request.get_json()
+
     question = data.get("msg", "").lower()
     pm25 = float(data.get("pm25", 0))
-    fan_state = int(data.get("fan", fan_state or 0))  # รับสถานะจริงจาก ESP32
+    fan_state = int(data.get("fan", fan_state))
 
     humidity, pressure, temp, weather = get_weather()
 
@@ -145,55 +144,65 @@ def chat():
         trend_text = "คงที่"
 
     level, advice = evaluate(pm25)
+
     eff = get_fan_efficiency()
 
-    #  AI LOGIC
-    if "report" in question:
+    reply = ""
+
+    if "clear" in question:
+
+        reply = ""
+        
+    elif "report" in question:
 
         if pm25 > 50:
             fan_advice = "ควรเปิดพัดลม"
+
         elif pm25 > 25 and trend_value > 0:
             fan_advice = "แนะนำเปิดพัดลม"
+
         else:
             fan_advice = "ยังไม่จำเป็นต้องเปิดพัดลม"
-    
+
         reply = (
             "📋 สรุปคุณภาพอากาศ\n"
             f"PM2.5 = {pm25}\n"
             f"ระดับ = {level}\n\n"
-    
+
             "📈 แนวโน้มฝุ่น\n"
             f"{trend_text}\n\n"
-    
+
             "💨 คำแนะนำพัดลม\n"
             f"{fan_advice}\n\n"
-    
+
             "🧠 ประสิทธิภาพพัดลม\n"
             f"พัดลมลดฝุ่นเฉลี่ย {eff:.1f}%\n"
-    
+
             f"\n🌡 อุณหภูมิ {temp}°C\n"
             f"💧 ความชื้น {humidity}%\n"
             f"☁ สภาพอากาศ {weather}\n"
         )
 
+    else:
+
+        reply = (
+            "คำสั่งที่ใช้ได้\n\n"
+            "report\n"
+            "clear\n"
+        )
+
     return Response(
         json.dumps({
             "reply": reply,
-            "fan": fan_state
+            "fan": fan_state,
+            "temperature": temp,
+            "humidity": humidity
         }, ensure_ascii=False),
         mimetype="application/json"
     )
 
-# RUN SERVER
 if __name__ == "__main__":
+
     port = int(os.environ.get("PORT", 10000))
+
     app.run(host="0.0.0.0", port=port)
-
-
-
-
-
-
-
-
-
