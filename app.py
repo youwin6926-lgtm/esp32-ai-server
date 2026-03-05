@@ -148,39 +148,32 @@ def chat():
     eff = get_fan_efficiency()
 
     #  AI LOGIC
-    if "ควรเปิดพัดลมไหม" in question:
+    if "report" in question:
+
         if pm25 > 50:
-            reply = "🌫 ฝุ่นสูง แนะนำเปิดพัดลม\n"
+            fan_advice = "ควรเปิดพัดลม"
         elif pm25 > 25 and trend_value > 0:
-            reply = "📈 ฝุ่นเพิ่ม แนะนำเปิดพัดลม\n"
+            fan_advice = "แนะนำเปิดพัดลม"
         else:
-            reply = "✅ อากาศยังดีไม่จำเป็นต้องเปิด\n"
-
-    elif "แนวโน้ม" in question:
-        reply = f"📊 แนวโน้มฝุ่น: {trend_text}\nPM2.5 = {pm25}"
-
-    elif "สรุป" in question or "คุณภาพอากาศ" in question:
+            fan_advice = "ยังไม่จำเป็นต้องเปิดพัดลม"
+    
         reply = (
             "📋 สรุปคุณภาพอากาศ\n"
             f"PM2.5 = {pm25}\n"
-            f"ระดับ = {level}\n"
-            f"แนวโน้ม = {trend_text}\n"
-            f"พัดลมลดฝุ่นเฉลี่ย = {eff:.1f}%\n"
-            f"อุณหภูมิ = {temp}°C\n"
-            f"ความชื้น = {humidity}%\n"
-            f"อากาศ = {weather}\n"
-        )
-
-    elif "ประสิทธิภาพพัดลม" in question:
-        reply = f"🧠 พัดลมลดฝุ่นเฉลี่ย {eff:.1f}%\n"
-
-    else:
-        reply = (
-            "คำสั่งที่ใช้ได้:\n"
-            "ควรเปิดพัดลมไหม\n"
-            "สรุปคุณภาพอากาศ\n"
-            "แนวโน้มฝุ่น\n"
-            "ประสิทธิภาพพัดลม\n"
+            f"ระดับ = {level}\n\n"
+    
+            "📈 แนวโน้มฝุ่น\n"
+            f"{trend_text}\n\n"
+    
+            "💨 คำแนะนำพัดลม\n"
+            f"{fan_advice}\n\n"
+    
+            "🧠 ประสิทธิภาพพัดลม\n"
+            f"พัดลมลดฝุ่นเฉลี่ย {eff:.1f}%\n"
+    
+            f"\n🌡 อุณหภูมิ {temp}°C\n"
+            f"💧 ความชื้น {humidity}%\n"
+            f"☁ สภาพอากาศ {weather}\n"
         )
 
     return Response(
