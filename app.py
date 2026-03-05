@@ -54,18 +54,26 @@ def get_weather():
 
     try:
 
-        url = f"http://api.openweathermap.org/data/2.5/weather?q={CITY},TH&appid={API_KEY}&units=metric"
-        r = requests.get(url, timeout=10).json()
+        url = f"https://api.openweathermap.org/data/2.5/weather?q={CITY},TH&appid={API_KEY}&units=metric"
 
-        return (
-            r["main"]["humidity"],
-            r["main"]["pressure"],
-            r["main"]["temp"],
-            r["weather"][0]["main"]
-        )
+        r = requests.get(url, timeout=10)
 
-    except:
-        return 0, 0, 0, "unknown"
+        data = r.json()
+
+        print(data)
+
+        humidity = data["main"]["humidity"]
+        pressure = data["main"]["pressure"]
+        temp = data["main"]["temp"]
+        weather = data["weather"][0]["main"]
+
+        return humidity, pressure, temp, weather
+
+    except Exception as e:
+
+        print("Weather API Error:", e)
+
+        return 0,0,0,"unknown"
 
 def evaluate(pm25):
 
@@ -206,3 +214,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
 
     app.run(host="0.0.0.0", port=port)
+
